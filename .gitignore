@@ -10,3 +10,6 @@ make-icons.js
 test-*.bin
 .DS_Store
 Thumbs.db
+run-host.cmd
+test-host.js
+
