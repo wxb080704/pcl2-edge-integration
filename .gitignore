@@ -1,0 +1,12 @@
+node_modules/
+*.log
+pcl2-host.log
+Downloads/
+run-host.bat
+run-host.cmd
+com.pcl2.downloader.json
+e2e-test.js
+make-icons.js
+test-*.bin
+.DS_Store
+Thumbs.db

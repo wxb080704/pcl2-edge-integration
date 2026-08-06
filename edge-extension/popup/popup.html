@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #1b1b2f;
+    --card: #16213e;
+    --accent: #0f3460;
+    --primary: #e94560;
+    --success: #21bf73;
+    --text: #eaeaea;
+    --text2: #a0a0b8;
+    --border: #2a2a4a;
+    --radius: 10px;
+    --shadow: 0 4px 24px rgba(0,0,0,.3);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: 380px; min-height: 420px;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* 头部 */
+  .header {
+    background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #e94560, #c23152);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 2px 8px rgba(233,69,96,.35);
+  }
+  .header-info h1 {
+    font-size: 14px; font-weight: 700; letter-spacing: 0.3px;
+  }
+  .header-info span {
+    font-size: 11px; color: var(--text2);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%; display: inline-block;
+  }
+  .status-dot.on { background: #21bf73; box-shadow: 0 0 6px #21bf73; }
+
+  /* 主区域滚动 */
+  .main-scroll {
+    max-height: 360px; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .main-scroll::-webkit-scrollbar { width: 4px; }
+  .main-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* 卡片 */
+  .section {
+    margin: 10px 12px;
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .sec-title {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--text2); padding: 10px 14px 4px;
+  }
+
+  /* 开关行 */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px;
+  }
+  .toggle-row:last-child { padding-bottom: 10px; }
+  .toggle-label { font-size: 13px; }
+  .toggle {
+    position: relative; width: 44px; height: 24px; flex-shrink: 0;
+  }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle .track {
+    position: absolute; inset: 0;
+    background: #3a3a5c; border-radius: 24px; transition: .25s;
+  }
+  .toggle .thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; background: #fff; border-radius: 50%;
+    transition: .25s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .toggle input:checked + .track { background: var(--success); }
+  .toggle input:checked + .track .thumb { transform: translateX(20px); }
+
+  /* 输入行 */
+  .input-row {
+    display: flex; gap: 8px; padding: 8px 14px 12px;
+  }
+  .input-row input {
+    flex: 1; padding: 8px 10px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 12px; outline: none;
+  }
+  .input-row input:focus { border-color: var(--primary); }
+  .btn {
+    padding: 8px 14px; border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--primary); color: #fff;
+    transition: .2s; white-space: nowrap;
+  }
+  .btn:hover { filter: brightness(1.15); }
+
+  /* 任务列表 */
+  .job-list { padding: 2px 0; }
+
+  .job-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    transition: background .2s;
+  }
+  .job-item:last-child { border-bottom: none; }
+  .job-item:hover { background: rgba(255,255,255,.02); }
+
+  .job-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+    background: rgba(255,255,255,.05);
+  }
+  .job-info { flex:1; min-width:0; }
+  .job-name {
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .job-meta {
+    font-size: 11px; color: var(--text2);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .job-speed { color: var(--primary); font-weight: 600; }
+  .job-pct { color: var(--success); font-weight: 600; }
+
+  .job-bar {
+    height: 3px; background: rgba(255,255,255,.08); border-radius: 3px; margin-top: 4px;
+  }
+  .job-bar-fg {
+    height: 100%; border-radius: 3px; transition: width .4s;
+    background: linear-gradient(90deg, var(--primary), #f06);
+  }
+  .job-bar-fg.done { background: var(--success); }
+  .job-bar-fg.error { background: #ff4757; }
+
+  .job-cancel {
+    width: 24px; height: 24px; border: none; border-radius: 6px;
+    background: rgba(255,255,255,.06); color: #ff6b81;
+    font-size: 12px; cursor: pointer; transition: .2s; flex-shrink: 0;
+  }
+  .job-cancel:hover { background: rgba(255,71,87,.2); }
+
+  .empty {
+    text-align: center; padding: 40px 20px; color: var(--text2);
+  }
+  .empty-icon { font-size: 40px; display: block; margin-bottom: 10px; opacity: .6; }
+  .empty p { font-size: 12px; line-height: 1.6; }
+
+  /* 底部提示 */
+  .footer {
+    padding: 8px 14px; font-size: 10px; color: var(--text2);
+    text-align: center; border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">⬇</div>
+  <div class="header-info">
+    <h1>PCL2 Downloader</h1>
+    <span><span class="status-dot on" id="hostDot"></span> <span id="hostStatus">已连接</span></span>
+  </div>
+</div>
+
+<div class="main-scroll">
+
+  <div class="section">
+    <div class="sec-title">⚙ 设置</div>
+    <div class="toggle-row">
+      <span class="toggle-label">自动接管下载</span>
+      <label class="toggle">
+        <input type="checkbox" id="autoCatch" checked>
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">下载通知</span>
+      <label class="toggle">
+        <input type="checkbox" id="showDialog" checked>
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">🔗 手动添加</div>
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="粘贴 URL 后按 Enter …">
+      <button class="btn" id="btnAdd">下载</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">📥 下载队列</div>
+    <div class="job-list" id="jobList">
+      <div class="empty">
+        <span class="empty-icon">📭</span>
+        <p>暂无下载任务<br>浏览网页时点击链接自动接管</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">保存至 D:\下载 · PCL2 引擎 v2</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
