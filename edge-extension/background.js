@@ -154,7 +154,9 @@ chrome.downloads.onCreated.addListener((downloadItem) => {
   }
 });
 
-chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => { suggest(); });
+chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
+  suggest({ filename: safeFilename(downloadItem.filename) });
+});
 
 // ============================================================
 // Popup 通信
