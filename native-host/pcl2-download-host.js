@@ -37,35 +37,39 @@ function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
       headers,
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const newUrl = new URL(res.headers.location, url).href;
-        return simpleDownload(newUrl, savePath, cookies, referer, onProgress, timeout).then(resolve).catch(reject);
+        return simpleDownload(new URL(res.headers.location, url).href, savePath, cookies, referer, onProgress, timeout).then(resolve).catch(reject);
       }
 
       total = parseInt(res.headers['content-length'] || '0', 10);
-      const chunks = [];
+      const file = fs.createWriteStream(savePath);
+      let lastEmit = 0;
+
       res.on('data', (chunk) => {
         received += chunk.length;
-        chunks.push(chunk);
-        const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? Math.round(received / elapsed) : 0;
-        const remaining = total > 0 ? total - received : 0;
-        const eta = speed > 0 ? Math.round(remaining / speed) : 0;
-        if (onProgress) onProgress({ received, total, speed, eta, percent: total > 0 ? Math.round(received * 100 / total) : 0 });
+        file.write(chunk);
+        // 每 200ms 发一次进度，避免高频消息
+        const now = Date.now();
+        if (now - lastEmit > 200) {
+          lastEmit = now;
+          const elapsed = (now - startTime) / 1000;
+          const speed = elapsed > 0 ? Math.round(received / elapsed) : 0;
+          const remaining = total > 0 ? total - received : 0;
+          const eta = speed > 0 ? Math.round(remaining / speed) : 0;
+          if (onProgress) onProgress({ received, total, speed, eta, percent: total > 0 ? Math.round(received * 100 / total) : 0 });
+        }
       });
 
       res.on('end', () => {
-        const data = Buffer.concat(chunks);
-        fs.writeFile(savePath, data, (err) => {
-          if (err) return reject(err);
-          log('INFO', `Download complete: ${savePath} (${data.length} bytes)`);
-          // 打开资源管理器并选中文件
+        file.end(() => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          log('INFO', `Download complete: ${savePath} (${received} bytes, ${elapsed.toFixed(1)}s)`);
           const { execFile } = require('child_process');
-          execFile('explorer', ['/select,', savePath], (e) => { if (e) log('WARN', `explorer failed: ${e.message}`); });
-          resolve(data.length);
+          execFile('explorer', ['/select,', savePath], () => {});
+          resolve(received);
         });
       });
 
-      res.on('error', reject);
+      res.on('error', (e) => { file.close(); reject(e); });
     });
 
     req.on('error', reject);
