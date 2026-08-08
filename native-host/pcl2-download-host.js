@@ -44,7 +44,9 @@ function simpleDownload(url, savePath, onProgress, timeout) {
         chunks.push(chunk);
         const elapsed = (Date.now() - startTime) / 1000;
         const speed = elapsed > 0 ? Math.round(received / elapsed) : 0;
-        if (onProgress) onProgress({ received, total, speed, percent: total > 0 ? Math.round(received * 100 / total) : 0 });
+        const remaining = total > 0 ? total - received : 0;
+        const eta = speed > 0 ? Math.round(remaining / speed) : 0;
+        if (onProgress) onProgress({ received, total, speed, eta, percent: total > 0 ? Math.round(received * 100 / total) : 0 });
       });
 
       res.on('end', () => {
@@ -78,8 +80,8 @@ function sendMessage(obj) {
   process.stdout.write(buf);
 }
 
-function sendProgress(jobId, received, total, percent, status, speed) {
-  sendMessage({ type: 'progress', jobId, received, total, percent, status, speed: speed || 0 });
+function sendProgress(jobId, received, total, percent, status, speed, eta) {
+  sendMessage({ type: 'progress', jobId, received, total, percent, status, speed: speed || 0, eta: eta || 0 });
 }
 
 function readMessage() {
@@ -129,8 +131,8 @@ async function handleMessage(msg) {
 
       // 异步下载
       try {
-        await simpleDownload(msg.url, finalPath, ({ received, total, percent, speed }) => {
-          sendProgress(msg.jobId, received, total, percent, 'downloading', speed);
+        await simpleDownload(msg.url, finalPath, ({ received, total, percent, speed, eta }) => {
+          sendProgress(msg.jobId, received, total, percent, 'downloading', speed, eta);
         }, 30000);
         sendProgress(msg.jobId, 0, 0, 100, 'completed');
       } catch (e) {

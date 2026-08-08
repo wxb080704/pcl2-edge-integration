@@ -63,6 +63,13 @@ function speedText(bps) {
   return (bps / 1048576).toFixed(1) + ' MB/s';
 }
 
+function etaText(sec) {
+  if (!sec || sec < 1) return '';
+  if (sec < 60) return sec + '秒';
+  if (sec < 3600) return Math.floor(sec / 60) + '分' + (sec % 60) + '秒';
+  return Math.floor(sec / 3600) + '时' + Math.floor((sec % 3600) / 60) + '分';
+}
+
 function sizeText(b) {
   if (!b || b < 1) return '';
   if (b < 1024) return b + ' B';
@@ -82,6 +89,7 @@ function render(jobs) {
     .map(([id, j]) => {
       const pct = j.total > 0 ? Math.round(j.received / j.total * 100) : 0;
       const spd = speedText(j.speed);
+      const eta = etaText(j.eta);
       const barCls = j.status === 'completed' ? 'done' : j.status === 'failed' ? 'error' : '';
       const cancel = j.status === 'queued' || j.status === 'downloading';
       return `
@@ -93,6 +101,7 @@ function render(jobs) {
               <span>${LABELS[j.status] || j.status}</span>
               ${pct > 0 ? `<span class="job-pct">${pct}%</span>` : ''}
               ${spd ? `<span class="job-speed">${spd}</span>` : ''}
+              ${eta ? `<span>剩余 ${eta}</span>` : ''}
               ${j.total > 0 ? `<span>${sizeText(j.received)} / ${sizeText(j.total)}</span>` : ''}
             </div>
             ${j.total > 0 ? `<div class="job-bar"><div class="job-bar-fg ${barCls}" style="width:${pct}%"></div></div>` : ''}

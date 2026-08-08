@@ -70,6 +70,7 @@ function handleHostMessage(msg) {
       job.received = msg.received;
       job.total = msg.total;
       job.speed = msg.speed || 0;
+      job.eta = msg.eta || 0;
       updateBadge();
     }
     if (msg.status === 'completed' && job) {
