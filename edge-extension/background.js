@@ -129,6 +129,10 @@ chrome.downloads.onCreated.addListener((downloadItem) => {
     });
   }, 200);
 
+  // 收集 cookies 和 referer
+  const cookies = downloadItem.cookies || '';
+  const referer = downloadItem.referrer || '';
+  
   // 直接发送到 Native Host（不用 Promise）
   if (!nativePort) {
     console.error('[PCL2] No Native Host connection');
@@ -139,18 +143,23 @@ chrome.downloads.onCreated.addListener((downloadItem) => {
     return;
   }
 
-  try {
-    nativePort.postMessage({ 
-      action: 'download', jobId, url, filename, 
-      threadCount: settings.threadCount,
-      cookies: downloadItem.cookies || '',
-      referer: downloadItem.referrer || '',
-    });
-    console.log('[PCL2] → Host: download', jobId);
-  } catch (e) {
-    console.error('[PCL2] postMessage failed:', e.message);
-    activeJobs[jobId].status = 'failed';
-  }
+  // 异步获取 cookies（downloadItem.cookies 在 Edge 中通常为空）
+  chrome.cookies.getAll({ url }, (cookiesArr) => {
+    const cookieStr = cookiesArr.map(c => `${c.name}=${c.value}`).join('; ');
+    
+    try {
+      nativePort.postMessage({ 
+        action: 'download', jobId, url, filename, 
+        threadCount: settings.threadCount,
+        cookies: cookieStr || cookies,
+        referer,
+      });
+      console.log('[PCL2] → Host: download', jobId);
+    } catch (e) {
+      console.error('[PCL2] postMessage failed:', e.message);
+      activeJobs[jobId].status = 'failed';
+    }
+  });
 
   updateBadge();
 

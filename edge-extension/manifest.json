@@ -13,7 +13,8 @@
     "downloads.open",
     "storage",
     "notifications",
-    "nativeMessaging"
+    "nativeMessaging",
+    "cookies"
   ],
   "host_permissions": [
     "http://*/*",

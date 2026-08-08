@@ -18,8 +18,10 @@ function log(level, ...args) {
 // ============================================================
 // 简单的 HTTP GET 下载（可靠的单线程，类似 PCL2 基础模式）
 // ============================================================
-function simpleDownload(jobId, url, savePath, cookies, referer, onProgress, timeout) {
+function simpleDownload(jobId, url, savePath, cookies, referer, onProgress, timeout, _redirectCount) {
   return new Promise((resolve, reject) => {
+    const redirectCount = _redirectCount || 0;
+    if (redirectCount > 5) return reject(new Error('Too many redirects'));
     const parsed = new URL(url);
     const mod = parsed.protocol === 'https:' ? https : http;
     let received = 0;
@@ -37,8 +39,10 @@ function simpleDownload(jobId, url, savePath, cookies, referer, onProgress, time
       headers,
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return simpleDownload(jobId, new URL(res.headers.location, url).href, savePath, cookies, referer, onProgress, timeout).then(resolve).catch(reject);
+        return simpleDownload(jobId, new URL(res.headers.location, url).href, savePath, cookies, referer, onProgress, timeout, redirectCount + 1).then(resolve).catch(reject);
       }
+
+      if (res.statusCode >= 400) return reject(new Error(`HTTP ${res.statusCode}`));
 
       total = parseInt(res.headers['content-length'] || '0', 10);
       const file = fs.createWriteStream(savePath);
@@ -120,7 +124,7 @@ function readMessage() {
 // ============================================================
 // 消息处理
 // ============================================================
-async function handleMessage(msg) {
+function handleMessage(msg) {
   log('INFO', 'RECV:', JSON.stringify(msg));
 
   switch (msg.action) {
@@ -142,16 +146,15 @@ async function handleMessage(msg) {
       log('INFO', `Download start: ${msg.url} → ${finalPath}`);
       sendMessage({ type: 'response', jobId: msg.jobId, status: 'started', savePath: finalPath });
 
-      // 异步下载
-      try {
-        await simpleDownload(msg.jobId, msg.url, finalPath, msg.cookies || '', msg.referer || '', ({ received, total, percent, speed, eta }) => {
-          sendProgress(msg.jobId, received, total, percent, 'downloading', speed, eta);
-        }, 30000);
-        sendProgress(msg.jobId, 0, 0, 100, 'completed');
-      } catch (e) {
-        log('ERROR', `Download failed: ${e.message}`);
-        sendMessage({ type: 'error', jobId: msg.jobId, error: e.message });
-      }
+      // 🔥 异步启动，不阻塞主循环
+      simpleDownload(msg.jobId, msg.url, finalPath, msg.cookies || '', msg.referer || '', ({ received, total, percent, speed, eta }) => {
+        sendProgress(msg.jobId, received, total, percent, 'downloading', speed, eta);
+      }, 30000)
+        .then(() => sendProgress(msg.jobId, 0, 0, 100, 'completed'))
+        .catch((e) => {
+          log('ERROR', `Download failed: ${e.message}`);
+          sendMessage({ type: 'error', jobId: msg.jobId, error: e.message });
+        });
       break;
     }
 
@@ -185,7 +188,7 @@ async function main() {
   while (true) {
     try {
       const msg = await readMessage();
-      await handleMessage(msg);
+      handleMessage(msg);
     } catch (e) {
       process.exit(0);
     }
