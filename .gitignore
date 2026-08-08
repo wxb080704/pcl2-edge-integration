@@ -8,8 +8,7 @@ com.pcl2.downloader.json
 e2e-test.js
 make-icons.js
 test-*.bin
+test-host.js
 .DS_Store
 Thumbs.db
-run-host.cmd
-test-host.js
 

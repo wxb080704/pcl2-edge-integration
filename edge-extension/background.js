@@ -5,6 +5,12 @@
 
 const NATIVE_HOST_NAME = 'com.pcl2.downloader';
 
+// 安全文件名：去除 Windows 非法字符
+function safeFilename(name) {
+  if (!name || name === 'unknown') return 'download';
+  return name.replace(/[<>:"/\\|?*]/g, '_').replace(/[\x00-\x1f]/g, '').trim() || 'download';
+}
+
 let activeJobs = {};
 let fallbackAllowlist = new Set();
 const FALLBACK_TTL = 60000;
@@ -94,7 +100,7 @@ chrome.downloads.onCreated.addListener((downloadItem) => {
   if (!settings.autoCatch) return;
 
   const url = downloadItem.url;
-  const filename = downloadItem.filename || 'unknown';
+  const filename = safeFilename(downloadItem.filename);
 
   if (!url.startsWith('http://') && !url.startsWith('https://')) return;
   if (fallbackAllowlist.has(url)) { fallbackAllowlist.delete(url); return; }
