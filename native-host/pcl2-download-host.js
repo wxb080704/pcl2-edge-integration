@@ -52,6 +52,9 @@ function simpleDownload(url, savePath, onProgress, timeout) {
         fs.writeFile(savePath, data, (err) => {
           if (err) return reject(err);
           log('INFO', `Download complete: ${savePath} (${data.length} bytes)`);
+          // 打开资源管理器并选中文件
+          const { exec } = require('child_process');
+          exec(`explorer /select,"${savePath}"`, (e) => { if (e) log('WARN', `explorer failed: ${e.message}`); });
           resolve(data.length);
         });
       });
