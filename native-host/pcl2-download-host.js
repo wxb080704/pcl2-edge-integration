@@ -59,8 +59,8 @@ function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
           if (err) return reject(err);
           log('INFO', `Download complete: ${savePath} (${data.length} bytes)`);
           // 打开资源管理器并选中文件
-          const { exec } = require('child_process');
-          exec(`explorer /select,"${savePath}"`, (e) => { if (e) log('WARN', `explorer failed: ${e.message}`); });
+          const { execFile } = require('child_process');
+          execFile('explorer', ['/select,', savePath], (e) => { if (e) log('WARN', `explorer failed: ${e.message}`); });
           resolve(data.length);
         });
       });

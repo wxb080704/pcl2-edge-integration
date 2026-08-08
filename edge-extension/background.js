@@ -101,7 +101,15 @@ chrome.downloads.onCreated.addListener((downloadItem) => {
   if (!settings.autoCatch) return;
 
   const url = downloadItem.url;
-  const filename = safeFilename(downloadItem.filename);
+  let filename = safeFilename(downloadItem.filename);
+  // 如果浏览器没给文件名，从 URL 提取
+  if (!filename || filename === 'download') {
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname.split('/').pop();
+      if (pathname) filename = safeFilename(pathname);
+    } catch(e) {}
+  }
 
   if (!url.startsWith('http://') && !url.startsWith('https://')) return;
   if (fallbackAllowlist.has(url)) { fallbackAllowlist.delete(url); return; }
