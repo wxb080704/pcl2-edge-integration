@@ -18,7 +18,7 @@ function log(level, ...args) {
 // ============================================================
 // 简单的 HTTP GET 下载（可靠的单线程，类似 PCL2 基础模式）
 // ============================================================
-function simpleDownload(url, savePath, onProgress, timeout) {
+function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const mod = parsed.protocol === 'https:' ? https : http;
@@ -26,15 +26,19 @@ function simpleDownload(url, savePath, onProgress, timeout) {
     let total = 0;
     let startTime = Date.now();
 
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/131.0.0.0',
+    };
+    if (cookies) headers['Cookie'] = cookies;
+    if (referer)  headers['Referer'] = referer;
+
     const req = mod.get(url, {
-      timeout: timeout || 60000,  // 增加到 60 秒
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/131.0.0.0',
-      },
+      timeout: timeout || 60000,
+      headers,
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const newUrl = new URL(res.headers.location, url).href;
-        return simpleDownload(newUrl, savePath, onProgress, timeout).then(resolve).catch(reject);
+        return simpleDownload(newUrl, savePath, cookies, referer, onProgress, timeout).then(resolve).catch(reject);
       }
 
       total = parseInt(res.headers['content-length'] || '0', 10);
@@ -131,7 +135,7 @@ async function handleMessage(msg) {
 
       // 异步下载
       try {
-        await simpleDownload(msg.url, finalPath, ({ received, total, percent, speed, eta }) => {
+        await simpleDownload(msg.url, finalPath, msg.cookies || '', msg.referer || '', ({ received, total, percent, speed, eta }) => {
           sendProgress(msg.jobId, received, total, percent, 'downloading', speed, eta);
         }, 30000);
         sendProgress(msg.jobId, 0, 0, 100, 'completed');
