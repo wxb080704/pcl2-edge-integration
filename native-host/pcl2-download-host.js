@@ -18,7 +18,7 @@ function log(level, ...args) {
 // ============================================================
 // 简单的 HTTP GET 下载（可靠的单线程，类似 PCL2 基础模式）
 // ============================================================
-function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
+function simpleDownload(jobId, url, savePath, cookies, referer, onProgress, timeout) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const mod = parsed.protocol === 'https:' ? https : http;
@@ -37,11 +37,12 @@ function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
       headers,
     }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return simpleDownload(new URL(res.headers.location, url).href, savePath, cookies, referer, onProgress, timeout).then(resolve).catch(reject);
+        return simpleDownload(jobId, new URL(res.headers.location, url).href, savePath, cookies, referer, onProgress, timeout).then(resolve).catch(reject);
       }
 
       total = parseInt(res.headers['content-length'] || '0', 10);
       const file = fs.createWriteStream(savePath);
+      activeDownloads[jobId] = { req, file };
       let lastEmit = 0;
 
       res.on('data', (chunk) => {
@@ -61,6 +62,7 @@ function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
 
       res.on('end', () => {
         file.end(() => {
+          delete activeDownloads[jobId];
           const elapsed = (Date.now() - startTime) / 1000;
           log('INFO', `Download complete: ${savePath} (${received} bytes, ${elapsed.toFixed(1)}s)`);
           const { execFile } = require('child_process');
@@ -69,7 +71,7 @@ function simpleDownload(url, savePath, cookies, referer, onProgress, timeout) {
         });
       });
 
-      res.on('error', (e) => { file.close(); reject(e); });
+      res.on('error', (e) => { file.close(); delete activeDownloads[jobId]; reject(e); });
     });
 
     req.on('error', reject);
@@ -91,6 +93,9 @@ function sendMessage(obj) {
 function sendProgress(jobId, received, total, percent, status, speed, eta) {
   sendMessage({ type: 'progress', jobId, received, total, percent, status, speed: speed || 0, eta: eta || 0 });
 }
+
+// 活跃下载追踪（用于取消）
+const activeDownloads = {};
 
 function readMessage() {
   return new Promise((resolve, reject) => {
@@ -139,7 +144,7 @@ async function handleMessage(msg) {
 
       // 异步下载
       try {
-        await simpleDownload(msg.url, finalPath, msg.cookies || '', msg.referer || '', ({ received, total, percent, speed, eta }) => {
+        await simpleDownload(msg.jobId, msg.url, finalPath, msg.cookies || '', msg.referer || '', ({ received, total, percent, speed, eta }) => {
           sendProgress(msg.jobId, received, total, percent, 'downloading', speed, eta);
         }, 30000);
         sendProgress(msg.jobId, 0, 0, 100, 'completed');
@@ -150,9 +155,18 @@ async function handleMessage(msg) {
       break;
     }
 
-    case 'cancel':
+    case 'cancel': {
+      const dl = activeDownloads[msg.jobId];
+      if (dl) {
+        log('INFO', `Cancelling: ${msg.jobId}`);
+        dl.req.destroy();
+        dl.file.close();
+        try { fs.unlinkSync(dl.file.path); } catch(e) {}
+        delete activeDownloads[msg.jobId];
+      }
       sendMessage({ type: 'response', jobId: msg.jobId, status: 'cancelled' });
       break;
+    }
 
     case 'ping':
       sendMessage({ type: 'response', pong: true, version: '2.0.0' });
